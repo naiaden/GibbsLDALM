@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <math.h>
 #include "constants.h"
 #include "strtokenizer.h"
 #include "utils.h"
@@ -884,6 +885,15 @@ void model::estimate()
 	}
 
 	printf("Sampling %d iterations!\n", niters);
+	
+	if(treval)
+	{
+		printf("TREVAL ENABLED\n");
+	}
+	else 
+	{
+		printf("TREVAL DISABLED\n");
+	}
 
 	double perplexity_result = 0.0;
 
@@ -907,31 +917,32 @@ void model::estimate()
 		}
 
 		if (treval)
-			compute_theta();
-		compute_phi();
-		perplexity_result = train.perplexity();
-		print("%f\n", perplexity_result);
-	}
-
-	if (savestep > 0)
-	{
-		if (liter % savestep == 0)
 		{
-			// saving the model
-			printf("Saving the model at iteration %d ...\n", liter);
 			compute_theta();
 			compute_phi();
-			save_model(utils::generate_model_name(liter));
+			perplexity_result = train_perplexity();
+			printf("%f\n", perplexity_result);
+		}
+
+		if (savestep > 0)
+		{
+			if (liter % savestep == 0)
+			{
+				// saving the model
+				printf("Saving the model at iteration %d ...\n", liter);
+				compute_theta();
+				compute_phi();
+				save_model(utils::generate_model_name(liter));
+			}
 		}
 	}
-}
 
-printf("Gibbs sampling completed!\n");
-printf("Saving the final model!\n");
-compute_theta();
-compute_phi();
-liter--;
-save_model(utils::generate_model_name(-1));
+	printf("Gibbs sampling completed!\n");
+	printf("Saving the final model!\n");
+	compute_theta();
+	compute_phi();
+	liter--;
+	save_model(utils::generate_model_name(-1));
 }
 
 int model::sampling(int m, int n)

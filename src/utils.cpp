@@ -111,7 +111,9 @@ int utils::parse_args(int argc, char ** argv, model * pmodel)
 		}
 		else if (arg == "-treval")
 		{
-			treval = atoi(argv[++i]);
+			string bla = argv[++i];
+			treval = (bool) atoi(bla.c_str());
+			printf("YES, LET'S GO! %s %d\n", bla.c_str(), treval);
 		}
 		else
 		{
@@ -169,6 +171,9 @@ int utils::parse_args(int argc, char ** argv, model * pmodel)
 
 		pmodel->dfile = dfile;
 
+		pmodel->teval = teval;
+		pmodel->treval = treval;
+
 		string::size_type idx = dfile.find_last_of("/");
 		if (idx == string::npos)
 		{
@@ -224,6 +229,9 @@ int utils::parse_args(int argc, char ** argv, model * pmodel)
 			pmodel->twords = twords;
 		}
 
+		pmodel->teval = teval;
+		pmodel->treval = treval;
+
 		// read <model>.others file to assign values for ntopics, alpha, beta, etc.
 		if (read_and_parse(
 				pmodel->dir + pmodel->model_name + pmodel->others_suffix,
@@ -264,6 +272,9 @@ int utils::parse_args(int argc, char ** argv, model * pmodel)
 		pmodel->model_name = model_name;
 
 		pmodel->dfile = dfile;
+
+		pmodel->teval = teval;
+		pmodel->treval = treval;
 
 		if (niters > 0)
 		{
