@@ -29,21 +29,22 @@
 
 using namespace std;
 
-class strtokenizer {
+class strtokenizer
+{
 protected:
-    vector<string> tokens;
-    int idx;
+	vector<string> tokens;
+	int idx;
 
 public:
-    strtokenizer(string str, string seperators = " ");    
-    
-    void parse(string str, string seperators);
-    
-    int count_tokens();
-    string next_token();   
-    void start_scan();
+	strtokenizer(string str, string seperators = " ");
 
-    string token(int i);
+	void parse(string str, string seperators);
+
+	int count_tokens();
+	string next_token();
+	void start_scan();
+
+	string token(int i);
 };
 
 #endif
