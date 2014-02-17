@@ -45,6 +45,9 @@ int utils::parse_args(int argc, char ** argv, model * pmodel)
 	int twords = 0;
 	int withrawdata = 0;
 
+	bool teval = false;
+	bool treval = false;
+
 	int i = 0;
 	while (i < argc)
 	{
@@ -101,6 +104,14 @@ int utils::parse_args(int argc, char ** argv, model * pmodel)
 		else if (arg == "-withrawdata")
 		{
 			withrawdata = 1;
+		}
+		else if (arg == "-teval")
+		{
+			teval = atoi(argv[++i]);
+		}
+		else if (arg == "-treval")
+		{
+			treval = atoi(argv[++i]);
 		}
 		else
 		{

@@ -31,6 +31,7 @@
 #define	MODEL_STATUS_EST	1
 #define	MODEL_STATUS_ESTC	2
 #define	MODEL_STATUS_INF	3
+#define MODEL_EVALUATE		4
 
 #endif
 

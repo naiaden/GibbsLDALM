@@ -58,6 +58,10 @@ public:
 	// MODEL_STATUS_EST: estimating from scratch
 	// MODEL_STATUS_ESTC: continue to estimate the model from a previous one
 	// MODEL_STATUS_INF: do inference
+	// MODEL_STATUS_EVALUATE
+
+	bool teval;
+	bool treval;
 
 	dataset * ptrndata;	// pointer to training dataset object
 	dataset * pnewdata; // pointer to new dataset object
@@ -153,6 +157,9 @@ public:
 	int inf_sampling(int m, int n);
 	void compute_newtheta();
 	void compute_newphi();
+	
+	double test_perplexity();
+	double train_perplexity();
 };
 
 #endif

@@ -57,9 +57,9 @@ int main(int argc, char ** argv)
 void show_help()
 {
 	printf("Command line usage:\n");
-	printf("\tlda -est -alpha <double> -beta <double> -ntopics <int> -niters <int> -savestep <int> -twords <int> -dfile <string>\n");
-	printf("\tlda -estc -dir <string> -model <string> -niters <int> -savestep <int> -twords <int>\n");
-	printf("\tlda -inf -dir <string> -model <string> -niters <int> -twords <int> -dfile <string>\n");
+	printf("\tlda -est -alpha <double> -beta <double> -ntopics <int> -niters <int> -savestep <int> -twords <int> -treval <1|0> -dfile <string>\n");
+	printf("\tlda -estc -dir <string> -model <string> -niters <int> -savestep <int> -treval <1|0> -twords <int>\n");
+	printf("\tlda -inf -dir <string> -model <string> -niters <int> -twords <int> -teval <1|0> -dfile <string>\n");
 	// printf("\tlda -inf -dir <string> -model <string> -niters <int> -twords <int> -dfile <string> -withrawdata\n");
 }
 
