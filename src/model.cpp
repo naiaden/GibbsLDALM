@@ -743,9 +743,13 @@ void model::estimate() {
 
     printf("Sampling %d iterations!\n", niters);
 
+    double perplexity_result = 0.0;
+
     int last_iter = liter;
     for (liter = last_iter + 1; liter <= niters + last_iter; liter++) {
 	printf("Iteration %d ...\n", liter);
+	
+	perplexity_result = 0.0;
 	
 	// for all z_i
 	for (int m = 0; m < M; m++) {
@@ -755,6 +759,13 @@ void model::estimate() {
 		int topic = sampling(m, n);
 		z[m][n] = topic;
 	    }
+	}
+	
+	if(treval)
+	    compute_theta();
+	    compute_phi();
+	    perplexity_result = train.perplexity();
+	    print("%f\n", perplexity_result);
 	}
 	
 	if (savestep > 0) {
@@ -978,6 +989,8 @@ void model::inference() {
     for (inf_liter = 1; inf_liter <= niters; inf_liter++) {
 	printf("Iteration %d ...\n", inf_liter);
 	
+	double perplexity_result = 0.0;
+	
 	// for all newz_i
 	for (int m = 0; m < newM; m++) {
 	    for (int n = 0; n < pnewdata->docs[m]->length; n++) {
@@ -987,6 +1000,14 @@ void model::inference() {
 		newz[m][n] = topic;
 	    }
 	}
+	if(teval)
+	{   
+	    compute_newtheta();
+	    compute_newphi();
+	    perplexity_result = test_perplexity();
+	    printf("%f\n", perplexity_result);
+	}
+	
     }
     
     printf("Gibbs sampling for inference completed!\n");
@@ -1056,3 +1077,61 @@ void model::compute_newphi() {
     }
 }
 
+double model::train_perplexity()
+{
+    double result       = 0.0 ;
+    double expindex     = 0.0 ;
+    double wordcount    =  0  ;//thewords count in the whole documents.
+    int m,n,k;
+    for(k=0;k<K;k++)
+        p[k] = 0 ;
+
+     for ( m = 0;m < M; m++)
+    {
+         document * mydoc = ptrndata->docs[m];
+         for ( n = 0; n < mydoc->length; n++)
+        {
+            int v =  mydoc->words[n];
+             for( k=0 ; k<K ; k++ )
+                p[k] = theta[m][k]*phi[k][v];
+
+            for( k = 1; k < K; k++)
+                p[k] += p[k-1];
+
+            expindex += log(p[k-1]);
+        }
+        wordcount+=ndsum[m];
+    }
+    result = exp(-expindex/wordcount);
+    return result;
+}
+
+
+double model::test_perplexity()
+{ 
+    double result       = 0.0 ;
+    double expindex  = 0.0    ;
+    double wordcount    =  0  ;		//thewords count in the whole documents.
+	int m,n,k;
+	for(k=0;k<K;k++)
+		p[k] = 0 ;
+
+     for ( m = 0;m < newM; m++)
+    {
+		 document * _mydoc = pnewdata->_docs[m];
+         for ( n = 0; n < _mydoc->length; n++)
+        {
+            int v =  _mydoc->words[n];
+             for( k=0 ; k<K ; k++ )
+                p[k] = newtheta[m][k]*newphi[k][v];
+
+            for( k = 1; k < K; k++)
+                p[k] += p[k-1];
+
+            expindex += log(p[k-1]);
+        }
+        wordcount+=ndsum[m];
+    }
+    result = exp(-expindex/wordcount);
+    return result; 
+}
