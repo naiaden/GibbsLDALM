@@ -290,7 +290,7 @@ int model::load_model(string model_name)
 	FILE * fin = fopen(filename.c_str(), "r");
 	if (!fin)
 	{
-		printf("Cannot open file %d to load model!\n", filename.c_str());
+		printf("Cannot open file %s to load model!\n", filename.c_str());
 		return 1;
 	}
 
@@ -947,402 +947,402 @@ void model::estimate()
 
 int model::sampling(int m, int n)
 {
-// remove z_i from the count variables
-int topic = z[m][n];
-int w = ptrndata->docs[m]->words[n];
-nw[w][topic] -= 1;
-nd[m][topic] -= 1;
-nwsum[topic] -= 1;
-ndsum[m] -= 1;
+	// remove z_i from the count variables
+	int topic = z[m][n];
+	int w = ptrndata->docs[m]->words[n];
+	nw[w][topic] -= 1;
+	nd[m][topic] -= 1;
+	nwsum[topic] -= 1;
+	ndsum[m] -= 1;
 
-double Vbeta = V * beta;
-double Kalpha = K * alpha;
-// do multinomial sampling via cumulative method
-for (int k = 0; k < K; k++)
-{
-	p[k] = (nw[w][k] + beta) / (nwsum[k] + Vbeta) * (nd[m][k] + alpha)
-			/ (ndsum[m] + Kalpha);
-}
-// cumulate multinomial parameters
-for (int k = 1; k < K; k++)
-{
-	p[k] += p[k - 1];
-}
-// scaled sample because of unnormalized p[]
-double u = ((double) random() / RAND_MAX) * p[K - 1];
-
-for (topic = 0; topic < K; topic++)
-{
-	if (p[topic] > u)
+	double Vbeta = V * beta;
+	double Kalpha = K * alpha;
+	// do multinomial sampling via cumulative method
+	for (int k = 0; k < K; k++)
 	{
-		break;
+		p[k] = (nw[w][k] + beta) / (nwsum[k] + Vbeta) * (nd[m][k] + alpha)
+				/ (ndsum[m] + Kalpha);
 	}
-}
+	// cumulate multinomial parameters
+	for (int k = 1; k < K; k++)
+	{
+		p[k] += p[k - 1];
+	}
+	// scaled sample because of unnormalized p[]
+	double u = ((double) random() / RAND_MAX) * p[K - 1];
 
-// add newly estimated z_i to count variables
-nw[w][topic] += 1;
-nd[m][topic] += 1;
-nwsum[topic] += 1;
-ndsum[m] += 1;
+	for (topic = 0; topic < K; topic++)
+	{
+		if (p[topic] > u)
+		{
+			break;
+		}
+	}
 
-return topic;
+	// add newly estimated z_i to count variables
+	nw[w][topic] += 1;
+	nd[m][topic] += 1;
+	nwsum[topic] += 1;
+	ndsum[m] += 1;
+
+	return topic;
 }
 
 void model::compute_theta()
 {
-for (int m = 0; m < M; m++)
-{
-	for (int k = 0; k < K; k++)
+	for (int m = 0; m < M; m++)
 	{
-		theta[m][k] = (nd[m][k] + alpha) / (ndsum[m] + K * alpha);
+		for (int k = 0; k < K; k++)
+		{
+			theta[m][k] = (nd[m][k] + alpha) / (ndsum[m] + K * alpha);
+		}
 	}
-}
 }
 
 void model::compute_phi()
 {
-for (int k = 0; k < K; k++)
-{
-	for (int w = 0; w < V; w++)
+	for (int k = 0; k < K; k++)
 	{
-		phi[k][w] = (nw[w][k] + beta) / (nwsum[k] + V * beta);
+		for (int w = 0; w < V; w++)
+		{
+			phi[k][w] = (nw[w][k] + beta) / (nwsum[k] + V * beta);
+		}
 	}
-}
 }
 
 int model::init_inf()
 {
-// estimating the model from a previously estimated one
-int m, n, w, k;
+	// estimating the model from a previously estimated one
+	int m, n, w, k;
 
-p = new double[K];
+	p = new double[K];
 
-// load moel, i.e., read z and ptrndata
-if (load_model (model_name))
-{
-	printf("Fail to load word-topic assignmetn file of the model!\n");
-	return 1;
-}
-
-nw = new int*[V];
-for (w = 0; w < V; w++)
-{
-	nw[w] = new int[K];
-	for (k = 0; k < K; k++)
+	// load moel, i.e., read z and ptrndata
+	if (load_model (model_name))
 	{
-		nw[w][k] = 0;
-	}
-}
-
-nd = new int*[M];
-for (m = 0; m < M; m++)
-{
-	nd[m] = new int[K];
-	for (k = 0; k < K; k++)
-	{
-		nd[m][k] = 0;
-	}
-}
-
-nwsum = new int[K];
-for (k = 0; k < K; k++)
-{
-	nwsum[k] = 0;
-}
-
-ndsum = new int[M];
-for (m = 0; m < M; m++)
-{
-	ndsum[m] = 0;
-}
-
-for (m = 0; m < ptrndata->M; m++)
-{
-	int N = ptrndata->docs[m]->length;
-
-	// assign values for nw, nd, nwsum, and ndsum	
-	for (n = 0; n < N; n++)
-	{
-		int w = ptrndata->docs[m]->words[n];
-		int topic = z[m][n];
-
-		// number of instances of word i assigned to topic j
-		nw[w][topic] += 1;
-		// number of words in document i assigned to topic j
-		nd[m][topic] += 1;
-		// total number of words assigned to topic j
-		nwsum[topic] += 1;
-	}
-	// total number of words in document i
-	ndsum[m] = N;
-}
-
-// read new data for inference
-pnewdata = new dataset;
-if (withrawstrs)
-{
-	if (pnewdata->read_newdata_withrawstrs(dir + dfile, dir + wordmapfile))
-	{
-		printf("Fail to read new data!\n");
+		printf("Fail to load word-topic assignmetn file of the model!\n");
 		return 1;
 	}
-}
-else
-{
-	if (pnewdata->read_newdata(dir + dfile, dir + wordmapfile))
+
+	nw = new int*[V];
+	for (w = 0; w < V; w++)
 	{
-		printf("Fail to read new data!\n");
-		return 1;
+		nw[w] = new int[K];
+		for (k = 0; k < K; k++)
+		{
+			nw[w][k] = 0;
+		}
 	}
-}
 
-newM = pnewdata->M;
-newV = pnewdata->V;
+	nd = new int*[M];
+	for (m = 0; m < M; m++)
+	{
+		nd[m] = new int[K];
+		for (k = 0; k < K; k++)
+		{
+			nd[m][k] = 0;
+		}
+	}
 
-newnw = new int*[newV];
-for (w = 0; w < newV; w++)
-{
-	newnw[w] = new int[K];
+	nwsum = new int[K];
 	for (k = 0; k < K; k++)
 	{
-		newnw[w][k] = 0;
+		nwsum[k] = 0;
 	}
-}
 
-newnd = new int*[newM];
-for (m = 0; m < newM; m++)
-{
-	newnd[m] = new int[K];
+	ndsum = new int[M];
+	for (m = 0; m < M; m++)
+	{
+		ndsum[m] = 0;
+	}
+
+	for (m = 0; m < ptrndata->M; m++)
+	{
+		int N = ptrndata->docs[m]->length;
+
+		// assign values for nw, nd, nwsum, and ndsum	
+		for (n = 0; n < N; n++)
+		{
+			int w = ptrndata->docs[m]->words[n];
+			int topic = z[m][n];
+
+			// number of instances of word i assigned to topic j
+			nw[w][topic] += 1;
+			// number of words in document i assigned to topic j
+			nd[m][topic] += 1;
+			// total number of words assigned to topic j
+			nwsum[topic] += 1;
+		}
+		// total number of words in document i
+		ndsum[m] = N;
+	}
+
+	// read new data for inference
+	pnewdata = new dataset;
+	if (withrawstrs)
+	{
+		if (pnewdata->read_newdata_withrawstrs(dir + dfile, dir + wordmapfile))
+		{
+			printf("Fail to read new data!\n");
+			return 1;
+		}
+	}
+	else
+	{
+		if (pnewdata->read_newdata(dir + dfile, dir + wordmapfile))
+		{
+			printf("Fail to read new data!\n");
+			return 1;
+		}
+	}
+
+	newM = pnewdata->M;
+	newV = pnewdata->V;
+
+	newnw = new int*[newV];
+	for (w = 0; w < newV; w++)
+	{
+		newnw[w] = new int[K];
+		for (k = 0; k < K; k++)
+		{
+			newnw[w][k] = 0;
+		}
+	}
+
+	newnd = new int*[newM];
+	for (m = 0; m < newM; m++)
+	{
+		newnd[m] = new int[K];
+		for (k = 0; k < K; k++)
+		{
+			newnd[m][k] = 0;
+		}
+	}
+
+	newnwsum = new int[K];
 	for (k = 0; k < K; k++)
 	{
-		newnd[m][k] = 0;
+		newnwsum[k] = 0;
 	}
-}
 
-newnwsum = new int[K];
-for (k = 0; k < K; k++)
-{
-	newnwsum[k] = 0;
-}
-
-newndsum = new int[newM];
-for (m = 0; m < newM; m++)
-{
-	newndsum[m] = 0;
-}
-
-srandom(time(0)); // initialize for random number generation
-newz = new int*[newM];
-for (m = 0; m < pnewdata->M; m++)
-{
-	int N = pnewdata->docs[m]->length;
-	newz[m] = new int[N];
-
-	// assign values for nw, nd, nwsum, and ndsum	
-	for (n = 0; n < N; n++)
+	newndsum = new int[newM];
+	for (m = 0; m < newM; m++)
 	{
-		int w = pnewdata->docs[m]->words[n];
-		int _w = pnewdata->_docs[m]->words[n];
-		int topic = (int) (((double) random() / RAND_MAX) * K);
-		newz[m][n] = topic;
-
-		// number of instances of word i assigned to topic j
-		newnw[_w][topic] += 1;
-		// number of words in document i assigned to topic j
-		newnd[m][topic] += 1;
-		// total number of words assigned to topic j
-		newnwsum[topic] += 1;
+		newndsum[m] = 0;
 	}
-	// total number of words in document i
-	newndsum[m] = N;
-}
 
-newtheta = new double*[newM];
-for (m = 0; m < newM; m++)
-{
-	newtheta[m] = new double[K];
-}
+	srandom(time(0)); // initialize for random number generation
+	newz = new int*[newM];
+	for (m = 0; m < pnewdata->M; m++)
+	{
+		int N = pnewdata->docs[m]->length;
+		newz[m] = new int[N];
 
-newphi = new double*[K];
-for (k = 0; k < K; k++)
-{
-	newphi[k] = new double[newV];
-}
+		// assign values for nw, nd, nwsum, and ndsum	
+		for (n = 0; n < N; n++)
+		{
+			int w = pnewdata->docs[m]->words[n];
+			int _w = pnewdata->_docs[m]->words[n];
+			int topic = (int) (((double) random() / RAND_MAX) * K);
+			newz[m][n] = topic;
 
-return 0;
+			// number of instances of word i assigned to topic j
+			newnw[_w][topic] += 1;
+			// number of words in document i assigned to topic j
+			newnd[m][topic] += 1;
+			// total number of words assigned to topic j
+			newnwsum[topic] += 1;
+		}
+		// total number of words in document i
+		newndsum[m] = N;
+	}
+
+	newtheta = new double*[newM];
+	for (m = 0; m < newM; m++)
+	{
+		newtheta[m] = new double[K];
+	}
+
+	newphi = new double*[K];
+	for (k = 0; k < K; k++)
+	{
+		newphi[k] = new double[newV];
+	}
+
+	return 0;
 }
 
 void model::inference()
 {
-if (twords > 0)
-{
-	// print out top words per topic
-	dataset::read_wordmap(dir + wordmapfile, &id2word);
-}
-
-printf("Sampling %d iterations for inference!\n", niters);
-
-for (inf_liter = 1; inf_liter <= niters; inf_liter++)
-{
-	printf("Iteration %d ...\n", inf_liter);
-
-	double perplexity_result = 0.0;
-
-	// for all newz_i
-	for (int m = 0; m < newM; m++)
+	if (twords > 0)
 	{
-		for (int n = 0; n < pnewdata->docs[m]->length; n++)
+		// print out top words per topic
+		dataset::read_wordmap(dir + wordmapfile, &id2word);
+	}
+
+	printf("Sampling %d iterations for inference!\n", niters);
+
+	for (inf_liter = 1; inf_liter <= niters; inf_liter++)
+	{
+		printf("Iteration %d ...\n", inf_liter);
+
+		double perplexity_result = 0.0;
+
+		// for all newz_i
+		for (int m = 0; m < newM; m++)
 		{
-			// (newz_i = newz[m][n])
-			// sample from p(z_i|z_-i, w)
-			int topic = inf_sampling(m, n);
-			newz[m][n] = topic;
+			for (int n = 0; n < pnewdata->docs[m]->length; n++)
+			{
+				// (newz_i = newz[m][n])
+				// sample from p(z_i|z_-i, w)
+				int topic = inf_sampling(m, n);
+				newz[m][n] = topic;
+			}
 		}
-	}
-	if (teval)
-	{
-		compute_newtheta();
-		compute_newphi();
-		perplexity_result = test_perplexity();
-		printf("%f\n", perplexity_result);
+		if (teval)
+		{
+			compute_newtheta();
+			compute_newphi();
+			perplexity_result = test_perplexity();
+			printf("%f\n", perplexity_result);
+		}
+
 	}
 
-}
-
-printf("Gibbs sampling for inference completed!\n");
-printf("Saving the inference outputs!\n");
-compute_newtheta();
-compute_newphi();
-inf_liter--;
-save_inf_model (dfile);
+	printf("Gibbs sampling for inference completed!\n");
+	printf("Saving the inference outputs!\n");
+	compute_newtheta();
+	compute_newphi();
+	inf_liter--;
+	save_inf_model (dfile);
 }
 
 int model::inf_sampling(int m, int n)
 {
-// remove z_i from the count variables
-int topic = newz[m][n];
-int w = pnewdata->docs[m]->words[n];
-int _w = pnewdata->_docs[m]->words[n];
-newnw[_w][topic] -= 1;
-newnd[m][topic] -= 1;
-newnwsum[topic] -= 1;
-newndsum[m] -= 1;
+	// remove z_i from the count variables
+	int topic = newz[m][n];
+	int w = pnewdata->docs[m]->words[n];
+	int _w = pnewdata->_docs[m]->words[n];
+	newnw[_w][topic] -= 1;
+	newnd[m][topic] -= 1;
+	newnwsum[topic] -= 1;
+	newndsum[m] -= 1;
 
-double Vbeta = V * beta;
-double Kalpha = K * alpha;
-// do multinomial sampling via cumulative method
-for (int k = 0; k < K; k++)
-{
-	p[k] = (nw[w][k] + newnw[_w][k] + beta) / (nwsum[k] + newnwsum[k] + Vbeta)
-			* (newnd[m][k] + alpha) / (newndsum[m] + Kalpha);
-}
-// cumulate multinomial parameters
-for (int k = 1; k < K; k++)
-{
-	p[k] += p[k - 1];
-}
-// scaled sample because of unnormalized p[]
-double u = ((double) random() / RAND_MAX) * p[K - 1];
-
-for (topic = 0; topic < K; topic++)
-{
-	if (p[topic] > u)
+	double Vbeta = V * beta;
+	double Kalpha = K * alpha;
+	// do multinomial sampling via cumulative method
+	for (int k = 0; k < K; k++)
 	{
-		break;
+		p[k] = (nw[w][k] + newnw[_w][k] + beta) / (nwsum[k] + newnwsum[k] + Vbeta)
+				* (newnd[m][k] + alpha) / (newndsum[m] + Kalpha);
 	}
-}
+	// cumulate multinomial parameters
+	for (int k = 1; k < K; k++)
+	{
+		p[k] += p[k - 1];
+	}
+	// scaled sample because of unnormalized p[]
+	double u = ((double) random() / RAND_MAX) * p[K - 1];
 
-// add newly estimated z_i to count variables
-newnw[_w][topic] += 1;
-newnd[m][topic] += 1;
-newnwsum[topic] += 1;
-newndsum[m] += 1;
+	for (topic = 0; topic < K; topic++)
+	{
+		if (p[topic] > u)
+		{
+			break;
+		}
+	}
 
-return topic;
+	// add newly estimated z_i to count variables
+	newnw[_w][topic] += 1;
+	newnd[m][topic] += 1;
+	newnwsum[topic] += 1;
+	newndsum[m] += 1;
+
+	return topic;
 }
 
 void model::compute_newtheta()
 {
-for (int m = 0; m < newM; m++)
-{
-	for (int k = 0; k < K; k++)
+	for (int m = 0; m < newM; m++)
 	{
-		newtheta[m][k] = (newnd[m][k] + alpha) / (newndsum[m] + K * alpha);
+		for (int k = 0; k < K; k++)
+		{
+			newtheta[m][k] = (newnd[m][k] + alpha) / (newndsum[m] + K * alpha);
+		}
 	}
-}
 }
 
 void model::compute_newphi()
 {
-map<int, int>::iterator it;
-for (int k = 0; k < K; k++)
-{
-	for (int w = 0; w < newV; w++)
+	map<int, int>::iterator it;
+	for (int k = 0; k < K; k++)
 	{
-		it = pnewdata->_id2id.find(w);
-		if (it != pnewdata->_id2id.end())
+		for (int w = 0; w < newV; w++)
 		{
-			newphi[k][w] = (nw[it->second][k] + newnw[w][k] + beta)
-					/ (nwsum[k] + newnwsum[k] + V * beta);
+			it = pnewdata->_id2id.find(w);
+			if (it != pnewdata->_id2id.end())
+			{
+				newphi[k][w] = (nw[it->second][k] + newnw[w][k] + beta)
+						/ (nwsum[k] + newnwsum[k] + V * beta);
+			}
 		}
 	}
-}
 }
 
 double model::train_perplexity()
 {
-double result = 0.0;
-double expindex = 0.0;
-double wordcount = 0;		//thewords count in the whole documents.
-int m, n, k;
-for (k = 0; k < K; k++)
-	p[k] = 0;
+	double result = 0.0;
+	double expindex = 0.0;
+	double wordcount = 0;		//thewords count in the whole documents.
+	int m, n, k;
+	for (k = 0; k < K; k++)
+		p[k] = 0;
 
-for (m = 0; m < M; m++)
-{
-	document * mydoc = ptrndata->docs[m];
-	for (n = 0; n < mydoc->length; n++)
+	for (m = 0; m < M; m++)
 	{
-		int v = mydoc->words[n];
-		for (k = 0; k < K; k++)
-			p[k] = theta[m][k] * phi[k][v];
+		document * mydoc = ptrndata->docs[m];
+		for (n = 0; n < mydoc->length; n++)
+		{
+			int v = mydoc->words[n];
+			for (k = 0; k < K; k++)
+				p[k] = theta[m][k] * phi[k][v];
 
-		for (k = 1; k < K; k++)
-			p[k] += p[k - 1];
+			for (k = 1; k < K; k++)
+				p[k] += p[k - 1];
 
-		expindex += log(p[k - 1]);
+			expindex += log(p[k - 1]);
+		}
+		wordcount += ndsum[m];
 	}
-	wordcount += ndsum[m];
-}
-result = exp(-expindex / wordcount);
-return result;
+	result = exp(-expindex / wordcount);
+	return result;
 }
 
 double model::test_perplexity()
 {
-double result = 0.0;
-double expindex = 0.0;
-double wordcount = 0;		//thewords count in the whole documents.
-int m, n, k;
-for (k = 0; k < K; k++)
-	p[k] = 0;
+	double result = 0.0;
+	double expindex = 0.0;
+	double wordcount = 0;		//thewords count in the whole documents.
+	int m, n, k;
+	for (k = 0; k < K; k++)
+		p[k] = 0;
 
-for (m = 0; m < newM; m++)
-{
-	document * _mydoc = pnewdata->_docs[m];
-	for (n = 0; n < _mydoc->length; n++)
+	for (m = 0; m < newM; m++)
 	{
-		int v = _mydoc->words[n];
-		for (k = 0; k < K; k++)
-			p[k] = newtheta[m][k] * newphi[k][v];
+		document * _mydoc = pnewdata->_docs[m];
+		for (n = 0; n < _mydoc->length; n++)
+		{
+			int v = _mydoc->words[n];
+			for (k = 0; k < K; k++)
+				p[k] = newtheta[m][k] * newphi[k][v];
 
-		for (k = 1; k < K; k++)
-			p[k] += p[k - 1];
+			for (k = 1; k < K; k++)
+				p[k] += p[k - 1];
 
-		expindex += log(p[k - 1]);
+			expindex += log(p[k - 1]);
+		}
+		wordcount += ndsum[m];
 	}
-	wordcount += ndsum[m];
-}
-result = exp(-expindex / wordcount);
-return result;
+	result = exp(-expindex / wordcount);
+	return result;
 }

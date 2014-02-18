@@ -111,9 +111,7 @@ int utils::parse_args(int argc, char ** argv, model * pmodel)
 		}
 		else if (arg == "-treval")
 		{
-			string bla = argv[++i];
-			treval = (bool) atoi(bla.c_str());
-			printf("YES, LET'S GO! %s %d\n", bla.c_str(), treval);
+			treval = atoi(argv[++i]);
 		}
 		else
 		{
