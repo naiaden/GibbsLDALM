@@ -47,6 +47,7 @@ int utils::parse_args(int argc, char ** argv, model * pmodel)
 
 	bool teval = false;
 	bool treval = false;
+	bool wppl = false;
 
 	int i = 0;
 	while (i < argc)
@@ -112,6 +113,10 @@ int utils::parse_args(int argc, char ** argv, model * pmodel)
 		else if (arg == "-treval")
 		{
 			treval = atoi(argv[++i]);
+		}
+		else if (arg == "-wppl")
+		{
+			wppl = atoi(argv[++i]);
 		}
 		else
 		{
@@ -273,6 +278,7 @@ int utils::parse_args(int argc, char ** argv, model * pmodel)
 
 		pmodel->teval = teval;
 		pmodel->treval = treval;
+		pmodel->wppl = wppl;
 
 		if (niters > 0)
 		{

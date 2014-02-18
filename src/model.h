@@ -62,6 +62,7 @@ public:
 
 	bool teval;
 	bool treval;
+	bool wppl;
 
 	dataset * ptrndata;	// pointer to training dataset object
 	dataset * pnewdata; // pointer to new dataset object

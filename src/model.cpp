@@ -885,15 +885,6 @@ void model::estimate()
 	}
 
 	printf("Sampling %d iterations!\n", niters);
-	
-	if(treval)
-	{
-		printf("TREVAL ENABLED\n");
-	}
-	else 
-	{
-		printf("TREVAL DISABLED\n");
-	}
 
 	double perplexity_result = 0.0;
 
@@ -956,26 +947,28 @@ int model::sampling(int m, int n)
 	ndsum[m] -= 1;
 
 	double Vbeta = V * beta;
-	double Kalpha = K * alpha;
+	double Kalpha = K * alpha;   
+	
+	double sum_pk = 0.0;
 	// do multinomial sampling via cumulative method
 	for (int k = 0; k < K; k++)
 	{
-		p[k] = (nw[w][k] + beta) / (nwsum[k] + Vbeta) * (nd[m][k] + alpha)
+		double pk = (nw[w][k] + beta) / (nwsum[k] + Vbeta) * (nd[m][k] + alpha)
 				/ (ndsum[m] + Kalpha);
+		p[k] = pk;
+		sum_pk += pk;
 	}
-	// cumulate multinomial parameters
-	for (int k = 1; k < K; k++)
-	{
-		p[k] += p[k - 1];
-	}
-	// scaled sample because of unnormalized p[]
-	double u = ((double) random() / RAND_MAX) * p[K - 1];
 
+	double u = ((double) random() / RAND_MAX) * sum_pk;
 	for (topic = 0; topic < K; topic++)
 	{
 		if (p[topic] > u)
 		{
 			break;
+		} 
+		else 
+		{
+			u -= p[topic];
 		}
 	}
 
@@ -1189,16 +1182,51 @@ void model::inference()
 		double perplexity_result = 0.0;
 
 		// for all newz_i
-		for (int m = 0; m < newM; m++)
+		for (int m = 0; m < newM; m++) // M is the number of documents
 		{
-			for (int n = 0; n < pnewdata->docs[m]->length; n++)
+			document * _mydoc = pnewdata->_docs[m];
+		
+			for (int n = 0; n < pnewdata->docs[m]->length; n++) // N is the number of words
 			{
 				// (newz_i = newz[m][n])
 				// sample from p(z_i|z_-i, w)
 				int topic = inf_sampling(m, n);
 				newz[m][n] = topic;
 			}
+			
+			// We consider the word probability to be dependent on the topics in the document,
+			// following the definition from Griffiths and Steyvers (2004), "Finding scientific
+			// topics": P(w_i) = \sum_{j=1}^T P(w_i|z_i=j)P(z_i=j), where P(z_i=j) should be
+			// read as: P(z_i=j|d=m), with m being the current loop variable.
+			if(wppl && inf_liter == niters)
+			{
+				mapid2word::iterator it;
+			
+				compute_newtheta();
+				compute_newphi();
+				for (int n = 0; n < pnewdata->docs[m]->length; n++) // N is the number of words
+				{
+					for (int k = 0; k < K; k++)
+					{
+						p[k] = 0;
+					}
+				
+					double sum_pk = 0.0;
+					for (int k = 0; k < K; ++k) // K is the number of (hidden/latent) topics
+					{	
+						int v = _mydoc->words[n];
+						double pk = newtheta[m][k] * newphi[k][v];
+						p[k] = pk;
+						sum_pk += pk;
+					}
+					
+					it = id2word.find(n);
+					printf("[%d/%d:%d] %s %f\n", inf_liter, niters, m, (it->second).c_str(), sum_pk);
+				}
+			}		
 		}
+
+		
 		if (teval)
 		{
 			compute_newtheta();
@@ -1230,25 +1258,28 @@ int model::inf_sampling(int m, int n)
 
 	double Vbeta = V * beta;
 	double Kalpha = K * alpha;
+	
+	double sum_pk = 0.0;
 	// do multinomial sampling via cumulative method
 	for (int k = 0; k < K; k++)
-	{
-		p[k] = (nw[w][k] + newnw[_w][k] + beta) / (nwsum[k] + newnwsum[k] + Vbeta)
+	{	
+		double pk = (nw[w][k] + newnw[_w][k] + beta) / (nwsum[k] + newnwsum[k] + Vbeta)
 				* (newnd[m][k] + alpha) / (newndsum[m] + Kalpha);
+		p[k] = pk;
+		sum_pk += pk;
 	}
-	// cumulate multinomial parameters
-	for (int k = 1; k < K; k++)
-	{
-		p[k] += p[k - 1];
-	}
-	// scaled sample because of unnormalized p[]
-	double u = ((double) random() / RAND_MAX) * p[K - 1];
+	
+	double u = ((double) random() / RAND_MAX) * sum_pk;
 
 	for (topic = 0; topic < K; topic++)
 	{
 		if (p[topic] > u)
 		{
 			break;
+		}
+		else
+		{
+			u -= p[topic];
 		}
 	}
 
@@ -1288,7 +1319,7 @@ void model::compute_newphi()
 		}
 	}
 }
-
+  
 double model::train_perplexity()
 {
 	double result = 0.0;
@@ -1304,13 +1335,16 @@ double model::train_perplexity()
 		for (n = 0; n < mydoc->length; n++)
 		{
 			int v = mydoc->words[n];
+			
+			double sum_pk = 0.0;
 			for (k = 0; k < K; k++)
-				p[k] = theta[m][k] * phi[k][v];
+			{
+				double pk = theta[m][k] * phi[k][v];
+				p[k] = pk;
+				sum_pk += pk;
+			}
 
-			for (k = 1; k < K; k++)
-				p[k] += p[k - 1];
-
-			expindex += log(p[k - 1]);
+			expindex += log(sum_pk);
 		}
 		wordcount += ndsum[m];
 	}
@@ -1333,13 +1367,16 @@ double model::test_perplexity()
 		for (n = 0; n < _mydoc->length; n++)
 		{
 			int v = _mydoc->words[n];
+
+			double sum_pk = 0.0;
 			for (k = 0; k < K; k++)
-				p[k] = newtheta[m][k] * newphi[k][v];
+			{
+				double pk = newtheta[m][k] * newphi[k][v];
+				p[k] = pk;
+				sum_pk += pk;
+			}
 
-			for (k = 1; k < K; k++)
-				p[k] += p[k - 1];
-
-			expindex += log(p[k - 1]);
+			expindex += log(sum_pk);
 		}
 		wordcount += ndsum[m];
 	}

@@ -59,7 +59,13 @@ void show_help()
 	printf("Command line usage:\n");
 	printf("\tlda -est -alpha <double> -beta <double> -ntopics <int> -niters <int> -savestep <int> -twords <int> -treval <1|0> -dfile <string>\n");
 	printf("\tlda -estc -dir <string> -model <string> -niters <int> -savestep <int> -treval <1|0> -twords <int>\n");
-	printf("\tlda -inf -dir <string> -model <string> -niters <int> -twords <int> -teval <1|0> -dfile <string>\n");
+	printf("\tlda -inf -dir <string> -model <string> -niters <int> -twords <int> -teval <1|0> -wppl <1|0> -dfile <string>\n");
 	// printf("\tlda -inf -dir <string> -model <string> -niters <int> -twords <int> -dfile <string> -withrawdata\n");
+	
+	// estimating
+	// src/lda -est -alpha 0.5 -beta 0.1 -ntopics 50 -niters 50 -savestep 100 -twords 20 -treval 1 -wppl 1 -dfile models/casestudy/trndocs.dat
+	// infering
+	// src/lda -inf -dir models/casestudy/ -model model-final -niters 50 -twords 20 -wppl 1 -dfile newdocs.dat
+	
 }
 
